@@ -1,0 +1,29 @@
+name: LobbySelector
+version: '${version}'
+main: de.mcnetwork.lobby.LobbySelector
+api-version: '26.1'
+softdepend: [LuckPerms]
+description: Komplettes Lobby-System – Lobby-Welt, Serverauswahl, Scoreboard und mehr. Einstellungen im Dashboard.
+commands:
+  servers:
+    description: Öffnet die Serverauswahl.
+    aliases: [server, navigator]
+  spawn:
+    description: Zurück zum Spawn.
+    aliases: [hub, l]
+  setspawn:
+    description: Setzt den Lobby-Spawn auf deine Position.
+    permission: lobby.admin
+  sethologram:
+    description: Setzt das Hologramm auf deine Position.
+    permission: lobby.admin
+  build:
+    description: Baumodus an/aus (zum Umbauen der Lobby).
+    permission: lobby.build
+permissions:
+  lobby.build:
+    description: Darf mit /build die Lobby umbauen.
+    default: op
+  lobby.admin:
+    description: Darf den Spawn setzen.
+    default: op

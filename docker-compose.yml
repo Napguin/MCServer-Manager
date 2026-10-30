@@ -1,0 +1,100 @@
+x-luckperms: &luckperms
+  # LuckPerms liest diese Variablen auf jedem Server. Alle teilen sich eine Datenbank,
+  # Änderungen werden über die Datenbank sofort an alle Server verteilt.
+  LUCKPERMS_STORAGE_METHOD: mariadb
+  LUCKPERMS_DATA_ADDRESS: mariadb:3306
+  LUCKPERMS_DATA_DATABASE: luckperms
+  LUCKPERMS_DATA_USERNAME: luckperms
+  LUCKPERMS_DATA_PASSWORD: ${DB_PASSWORD}
+  LUCKPERMS_MESSAGING_SERVICE: sql
+
+services:
+  # Der Proxy: einziger Minecraft-Port, der nach außen offen ist
+  velocity:
+    image: itzg/mc-proxy:java25
+    container_name: mc-velocity
+    restart: unless-stopped
+    environment:
+      <<: *luckperms
+      LUCKPERMS_SERVER: proxy
+      TYPE: VELOCITY
+      MEMORY: 512m
+      TZ: Europe/Berlin
+      DASHBOARD_URL: http://dashboard:8080
+      DASHBOARD_API_KEY: ${DASHBOARD_API_KEY}
+    volumes:
+      - ${DATA_DIR}/velocity:/server
+    ports:
+      - "25565:25565"
+    networks: [mcnetwork]
+    depends_on:
+      dashboard:
+        condition: service_started
+      mariadb:
+        condition: service_healthy
+
+  # Das Web-Dashboard: erstellt die Minecraft-Server als eigene Container
+  dashboard:
+    build: ./dashboard
+    container_name: mc-dashboard
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DOCKER_NETWORK: mcnetwork
+      PLUGIN_DIR: /opt/mcnetwork/build
+      INTERNAL_URL: http://dashboard:8080
+      LUCKPERMS_API_URL: http://luckperms-api:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Gleicher Pfad innen und außen, weil das Dashboard Ordner für neue Container anlegt
+      - ${DATA_DIR}:${DATA_DIR}
+      - ./build:/opt/mcnetwork/build:ro
+    ports:
+      # Nur lokal: von außen läuft das Dashboard über nginx mit HTTPS (oder per SSH-Tunnel)
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
+    networks: [mcnetwork]
+
+  # Gemeinsame Datenbank für LuckPerms (Rollen, Rechte, Prefixe)
+  mariadb:
+    image: mariadb:11
+    container_name: mc-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: luckperms
+      MARIADB_USER: luckperms
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: Europe/Berlin
+    volumes:
+      - ${DATA_DIR}/mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [mcnetwork]
+
+  # Offizielle LuckPerms-REST-API: darüber verwaltet das Dashboard die Rechte.
+  # Nur im internen Netzwerk erreichbar, zusätzlich mit API-Key geschützt.
+  luckperms-api:
+    image: ghcr.io/luckperms/rest-api:latest
+    container_name: mc-luckperms-api
+    restart: unless-stopped
+    environment:
+      <<: *luckperms
+      LUCKPERMS_SERVER: dashboard
+      LUCKPERMS_REST_HTTP_PORT: 8080
+      LUCKPERMS_REST_AUTH: "true"
+      LUCKPERMS_REST_AUTH_KEYS: ${LP_API_KEY}
+    # Der eingebaute Healthcheck des Images prüft einen Endpunkt, den es nicht gibt,
+    # und meldet deshalb immer "unhealthy", obwohl die API läuft
+    healthcheck:
+      disable: true
+    networks: [mcnetwork]
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+networks:
+  mcnetwork:
+    name: mcnetwork

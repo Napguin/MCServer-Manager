@@ -1,0 +1,60 @@
+name: NetworkChat
+version: '${version}'
+main: de.mcnetwork.chat.NetworkChat
+api-version: '26.1'
+folia-supported: true
+softdepend: [LuckPerms]
+# Vor Essentials laden, damit /vanish, /kick, /ban, /mute netzwerkweit von uns kommen
+loadbefore: [Essentials]
+description: Netzwerk-Funktionen – Prefixe, Netzwerk-Chat, Vanish, Admin-GUI und Moderation.
+commands:
+  vanish:
+    description: Im ganzen Netzwerk unsichtbar werden (und wieder sichtbar).
+    aliases: [v]
+    permission: network.vanish
+  admin:
+    description: Admin-Menü mit allen Spielern im Netzwerk (/admin server = Server-Verwaltung).
+    usage: /admin [spieler | server]
+    permission: network.admin
+  kick:
+    description: Spieler vom Netzwerk kicken.
+    usage: /kick <spieler> [grund]
+    permission: network.kick
+  ban:
+    description: Spieler vom Netzwerk bannen.
+    usage: /ban <spieler> [dauer z. B. 7d | perm] [grund]
+    permission: network.ban
+  unban:
+    description: Bann aufheben.
+    usage: /unban <spieler>
+    permission: network.ban
+  mute:
+    description: Spieler im ganzen Netzwerk muten.
+    usage: /mute <spieler> [dauer z. B. 1h | perm] [grund]
+    permission: network.mute
+  unmute:
+    description: Mute aufheben.
+    usage: /unmute <spieler>
+    permission: network.mute
+permissions:
+  network.admin:
+    description: Darf das Admin-Menü öffnen.
+    default: op
+  network.vanish:
+    description: Darf sich unsichtbar machen.
+    default: op
+  network.vanish.see:
+    description: Sieht unsichtbare Spieler.
+    default: op
+  network.kick:
+    default: op
+  network.ban:
+    default: op
+  network.mute:
+    default: op
+  network.servers:
+    description: Darf im Admin-Menü Server starten, stoppen und den Wartungsmodus umschalten.
+    default: op
+  network.rank:
+    description: Darf im Admin-Menü Ränge setzen.
+    default: op

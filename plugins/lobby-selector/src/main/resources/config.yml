@@ -1,0 +1,17 @@
+# Fast alles stellst du im Dashboard auf der Seite "Lobby" ein.
+# Hier stehen nur noch technische Einstellungen.
+
+# Dashboard-Adresse und API-Key kommen normalerweise aus den Umgebungsvariablen
+# DASHBOARD_URL und DASHBOARD_API_KEY (setzt das Dashboard automatisch).
+dashboard-url: "http://dashboard:8080"
+api-key: ""
+
+selector:
+  material: COMPASS
+  slot: 4
+  name: "<gold><bold>Serverauswahl</bold></gold> <gray>(Rechtsklick)"
+  name-en: "<gold><bold>Server Selector</bold></gold> <gray>(Right-click)"
+  gui-title: "<dark_gray>Wähle einen Server"
+  gui-title-en: "<dark_gray>Choose a server"
+
+# Der Spawn wird mit /setspawn gesetzt und hier gespeichert.

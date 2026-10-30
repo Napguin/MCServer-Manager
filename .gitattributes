@@ -1,0 +1,4 @@
+# Skripte und Configs laufen auf Linux: immer mit LF-Zeilenenden auschecken
+* text=auto eol=lf
+*.png binary
+*.jar binary

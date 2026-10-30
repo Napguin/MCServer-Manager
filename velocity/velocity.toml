@@ -1,0 +1,52 @@
+config-version = "2.7"
+
+# Velocity lauscht im Container auf 25565 (nach außen ebenfalls 25565)
+bind = "0.0.0.0:25565"
+motd = "<gold><bold>Mein Netzwerk</bold></gold><newline><gray>Willkommen!"
+show-max-players = 100
+
+# Mojang-Login prüfen (Premium-Accounts). Die Unterserver vertrauen Velocity.
+online-mode = true
+force-key-authentication = true
+prevent-client-proxy-connections = false
+
+# Moderne Weiterleitung: Unterserver erfahren UUID/Skin/IP des Spielers sicher
+player-info-forwarding-mode = "modern"
+forwarding-secret-file = "forwarding.secret"
+
+announce-forge = false
+kick-existing-players = false
+ping-passthrough = "DISABLED"
+enable-player-address-logging = true
+
+[servers]
+# Die Lobby ist fest eingetragen. Alle anderen Server fügt das Dashboard
+# zur Laufzeit hinzu (über das Plugin velocity-sync).
+lobby = "mc-lobby:25565"
+
+try = ["lobby"]
+
+[forced-hosts]
+
+[advanced]
+compression-threshold = 256
+compression-level = -1
+login-ratelimit = 3000
+connection-timeout = 5000
+read-timeout = 30000
+haproxy-protocol = false
+tcp-fast-open = false
+# Wichtig: damit das Lobby-Plugin Spieler per "Connect" weiterschicken kann
+bungee-plugin-message-channel = true
+show-ping-requests = false
+failover-on-unexpected-server-disconnect = true
+announce-proxy-commands = true
+log-command-executions = false
+log-player-connections = true
+accepts-transfers = false
+
+[query]
+enabled = false
+port = 25565
+map = "Velocity"
+show-plugins = false

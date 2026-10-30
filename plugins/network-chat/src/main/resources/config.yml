@@ -1,0 +1,8 @@
+# Chat-Format in MiniMessage (https://docs.advntr.dev/minimessage/format.html)
+# Platzhalter:
+#   <player>  = Prefix + Name + Suffix (Farben des Prefix gehen in den Namen über)
+#   <prefix>, <name>, <suffix>, <message>
+chat-format: "<player><dark_gray> » </dark_gray><white><message></white>"
+
+# Prefix und Suffix auch in der Tab-Liste anzeigen und nach Rollen-Gewicht sortieren
+tab-list: true

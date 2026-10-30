@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Netzwerk-Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Login -->
+  <section id="login-view" class="login hidden">
+    <form id="login-form" class="card login-card">
+      <h1>Netzwerk-Dashboard</h1>
+      <p class="muted">Admin-Anmeldung</p>
+      <input id="login-password" type="password" placeholder="Passwort" autocomplete="current-password" required autofocus>
+      <button class="btn primary" type="submit">Anmelden</button>
+      <p id="login-error" class="error"></p>
+    </form>
+  </section>
+
+  <!-- Dashboard -->
+  <section id="app-view" class="hidden">
+    <header class="topbar">
+      <h1>Netzwerk-Dashboard</h1>
+      <nav class="nav">
+        <button class="nav-btn active" data-page="servers">Server</button>
+        <button class="nav-btn" data-page="players">Spieler</button>
+        <button class="nav-btn" data-page="lobby">Lobby &amp; Tab</button>
+        <button class="nav-btn" data-page="motd">MOTD</button>
+        <button class="nav-btn" data-page="perms">Rechte</button>
+      </nav>
+      <div class="stats">
+        <span id="proxy-status" class="pill">Proxy …</span>
+        <span id="total-players" class="pill">0 Spieler</span>
+      </div>
+      <div class="actions">
+        <button class="btn" id="proxy-logs-btn">Proxy-Logs</button>
+        <button class="btn" id="proxy-restart-btn">Proxy neu starten</button>
+        <button class="btn ghost" id="logout-btn">Abmelden</button>
+      </div>
+    </header>
+
+    <main id="players-page" class="hidden">
+      <div class="section-head">
+        <h2>Spieler online <span id="mod-count" class="muted"></span></h2>
+        <form id="mod-form" class="inline-form">
+          <input name="target" placeholder="Spielername" maxlength="16" required>
+          <select name="action">
+            <option value="ban">Bannen</option>
+            <option value="mute">Muten</option>
+            <option value="kick">Kicken</option>
+            <option value="unban">Entbannen</option>
+            <option value="unmute">Entmuten</option>
+          </select>
+          <select name="duration">
+            <option value="0">Dauerhaft</option>
+            <option value="3600">1 Stunde</option>
+            <option value="86400">1 Tag</option>
+            <option value="604800">7 Tage</option>
+            <option value="2592000">30 Tage</option>
+          </select>
+          <input name="reason" placeholder="Grund (optional)" maxlength="200">
+          <button class="btn primary" type="submit">Ausführen</button>
+        </form>
+      </div>
+      <p id="mod-error" class="error"></p>
+      <div id="mod-players" class="list tall"></div>
+
+      <div class="lobby-columns mod-columns">
+        <div class="card lobby-card">
+          <h3>Gebannt</h3>
+          <div id="mod-bans" class="list"></div>
+        </div>
+        <div class="card lobby-card">
+          <h3>Gemutet</h3>
+          <div id="mod-mutes" class="list"></div>
+        </div>
+      </div>
+      <div class="card lobby-card">
+        <h3>Verlauf</h3>
+        <div id="mod-log" class="list"></div>
+      </div>
+      <p class="muted small-text">Im Spiel: <code>/admin</code> öffnet das Admin-Menü, <code>/vanish</code> macht dich im ganzen Netzwerk unsichtbar,
+        <code>/ban</code>, <code>/mute</code>, <code>/kick</code> gelten ebenfalls netzwerkweit.</p>
+    </main>
+
+    <main id="lobby-page" class="hidden">
+      <form id="lobby-form" class="lobby-form">
+        <div class="section-head">
+          <h2>Lobby-Einstellungen</h2>
+          <div class="server-actions">
+            <span id="lobby-status" class="muted"></span>
+            <button class="btn primary" type="submit">Speichern</button>
+          </div>
+        </div>
+        <div class="lang-switch">
+          <span class="muted">Texte bearbeiten für:</span>
+          <div class="nav">
+            <button type="button" class="nav-btn active" data-lang="de">🇩🇪 Deutsch</button>
+            <button type="button" class="nav-btn" data-lang="en">🇬🇧 English</button>
+          </div>
+          <span class="muted small-text">Spieler sehen die Texte in der Sprache ihres Minecraft (Deutsch → deutsch, alles andere → englisch). Leere englische Felder zeigen den deutschen Text.</span>
+        </div>
+
+        <div class="card lobby-card">
+          <h3>Allgemein</h3>
+          <label>Name des Netzwerks <small class="muted">(überall als &lt;network&gt; verfügbar)</small>
+            <input name="networkName" maxlength="100">
+          </label>
+          <div class="checks toggles">
+            <label><input type="checkbox" name="doubleJump"> Doppelsprung</label>
+            <label><input type="checkbox" name="launchPads"> Launchpads</label>
+            <label><input type="checkbox" name="playerHider"> Item „Spieler verstecken“</label>
+            <label><input type="checkbox" name="voidTeleport"> Bei Sturz ins Void zurück zum Spawn</label>
+            <label><input type="checkbox" name="hideJoinMessages"> Join-/Quit-Nachrichten ausblenden</label>
+          </div>
+        </div>
+
+        <div class="card lobby-card">
+          <h3>Beim Betreten</h3>
+          <div class="row">
+            <label>Titel <input name="welcomeTitle"></label>
+            <label>Untertitel <input name="welcomeSubtitle"></label>
+          </div>
+          <label>Hologramm über dem Brunnen <small class="muted">(leer = aus, mehrere Zeilen möglich)</small>
+            <textarea name="hologram" rows="3"></textarea>
+          </label>
+          <label>Bossbar oben <small class="muted">(leer = aus)</small>
+            <input name="bossBar">
+          </label>
+        </div>
+
+        <div class="lobby-columns">
+          <div class="card lobby-card">
+            <h3>Scoreboard (rechts)</h3>
+            <label>Überschrift <input name="scoreboardTitle"></label>
+            <label>Zeilen <small class="muted">(eine pro Zeile, max. 15)</small>
+              <textarea name="scoreboardLines" rows="9"></textarea>
+            </label>
+          </div>
+          <div class="card lobby-card">
+            <h3>Tab-Liste (ganzes Netzwerk)</h3>
+            <label>Kopfzeile <textarea name="tabHeader" rows="4"></textarea></label>
+            <label>Fußzeile <textarea name="tabFooter" rows="4"></textarea></label>
+            <label>Eintrag für Spieler auf anderen Servern
+              <input name="tabEntry">
+            </label>
+            <p class="muted small-text">Zusätzlich: <code>&lt;server&gt;</code> aktueller Server, <code>&lt;server_online&gt;</code> Spieler dort,
+              <code>&lt;servers_list&gt;</code> alle Server mit Spielerzahl, <code>&lt;ping&gt;</code>, beim Eintrag <code>&lt;player_display&gt;</code> = Prefix + Name.</p>
+          </div>
+        </div>
+
+        <div class="card lobby-card">
+          <h3>Chat</h3>
+          <div class="checks toggles">
+            <label><input type="checkbox" name="globalChat"> Netzwerk-Chat: Nachrichten erscheinen auf allen Servern (mit [Servername] davor)</label>
+          </div>
+        </div>
+
+        <div class="card lobby-card help">
+          <h3>Platzhalter &amp; Farben</h3>
+          <p class="muted">Texte nutzen <a href="https://docs.advntr.dev/minimessage/format.html" target="_blank" rel="noopener noreferrer">MiniMessage</a>:
+            <code>&lt;red&gt;</code>, <code>&lt;gold&gt;&lt;bold&gt;</code>, <code>&lt;#ff8800&gt;</code>, <code>&lt;gradient:gold:red&gt;Text&lt;/gradient&gt;</code></p>
+          <div class="chips">
+            <span class="chip static"><code>&lt;network&gt;</code>&nbsp;Netzwerk-Name</span>
+            <span class="chip static"><code>&lt;player&gt;</code>&nbsp;Spielername</span>
+            <span class="chip static"><code>&lt;rank&gt;</code>&nbsp;Rang (Prefix)</span>
+            <span class="chip static"><code>&lt;online&gt;</code>&nbsp;Spieler im Netzwerk</span>
+            <span class="chip static"><code>&lt;lobby_online&gt;</code>&nbsp;Spieler in der Lobby</span>
+            <span class="chip static"><code>&lt;servers&gt;</code>&nbsp;Server online</span>
+          </div>
+          <p class="muted small-text">Änderungen erscheinen nach wenigen Sekunden im Spiel. Titel und Bossbar kennen nur &lt;network&gt; und &lt;player&gt; bzw. die Zahlen.</p>
+          <button class="btn small ghost" type="button" id="lobby-reset">Alle Texte auf Standard zurücksetzen</button>
+        </div>
+      </form>
+
+      <div class="card lobby-card">
+        <h3>Im Spiel</h3>
+        <ul class="muted ingame">
+          <li><code>/build</code> – Baumodus an/aus, um die Lobby umzubauen (Recht <code>lobby.build</code>)</li>
+          <li><code>/setspawn</code> – Spawn auf deine Position setzen (Recht <code>lobby.admin</code>)</li>
+          <li><code>/spawn</code> – zurück zum Spawn · <code>/servers</code> – Serverauswahl öffnen</li>
+        </ul>
+      </div>
+    </main>
+
+    <main id="motd-page" class="hidden">
+      <form id="motd-form" class="lobby-form">
+        <div class="section-head">
+          <h2>Serverliste (MOTD)</h2>
+          <div class="server-actions">
+            <span id="motd-status" class="muted"></span>
+            <button class="btn primary" type="submit">Speichern</button>
+          </div>
+        </div>
+
+        <div class="card lobby-card">
+          <h3>Vorschau</h3>
+          <div class="mc-list">
+            <div class="mc-entry">
+              <img id="motd-preview-icon" alt="" width="64" height="64">
+              <div class="mc-body">
+                <div class="mc-top">
+                  <span class="mc-name" id="motd-preview-name">Minecraft-Server</span>
+                  <span class="mc-count"><span id="motd-preview-count">0/100</span> <span id="motd-preview-ping" class="mc-ping">▂▄▆█</span></span>
+                </div>
+                <div id="motd-preview-1" class="mc-motd"></div>
+                <div id="motd-preview-2" class="mc-motd"></div>
+              </div>
+            </div>
+          </div>
+          <p class="muted small-text">Ungefähre Vorschau – Farbverläufe und Sonderzeichen können im Spiel leicht anders aussehen.</p>
+        </div>
+
+        <div class="lobby-columns">
+          <div class="card lobby-card">
+            <h3>Text</h3>
+            <label>Zeile 1 <input name="line1" maxlength="1000"></label>
+            <label>Zeile 2 <input name="line2" maxlength="1000"></label>
+            <label>Hover-Text über der Spielerzahl <small class="muted">(leer = Liste der Spieler online, max. 15 Zeilen)</small>
+              <textarea name="hover" rows="4"></textarea>
+            </label>
+            <label>Maximale Spieler (Anzeige) <small class="muted">(0 = Standard)</small>
+              <input name="maxPlayers" type="number" min="0" max="100000">
+            </label>
+            <p class="muted small-text">Farben wie bei der Lobby: <code>&lt;gold&gt;</code>, <code>&lt;bold&gt;</code>, <code>&lt;#ff8800&gt;</code>,
+              <code>&lt;gradient:gold:red&gt;…&lt;/gradient&gt;</code>. <code>&lt;network&gt;</code> = Netzwerk-Name.</p>
+          </div>
+
+          <div class="card lobby-card">
+            <h3>Server-Icon</h3>
+            <div class="icon-row">
+              <img id="motd-icon" alt="Kein Icon" width="64" height="64" class="motd-icon">
+              <div class="server-actions">
+                <label class="btn small">Bild hochladen<input type="file" id="motd-icon-input" accept="image/*" hidden></label>
+                <button class="btn small ghost" type="button" id="motd-icon-remove">Entfernen</button>
+              </div>
+            </div>
+            <p class="muted small-text">Jedes Bild geht – es wird automatisch auf 64×64 Pixel zugeschnitten (quadratisch aus der Mitte).</p>
+
+            <h3>Wartungsmodus</h3>
+            <label class="checkbox"><input type="checkbox" name="maintenance"> Wartungsmodus an – nur Team mit Recht <code>network.maintenance.bypass</code> kommt rein</label>
+            <label>Zeile 2 während der Wartung <input name="maintenanceLine2" maxlength="1000"></label>
+            <label>Nachricht beim Verbinden <textarea name="maintenanceKick" rows="3"></textarea></label>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main id="perms-page" class="hidden">
+      <div id="perms-offline" class="notice hidden">
+        LuckPerms ist gerade nicht erreichbar. Beim ersten Start dauert das etwa eine Minute (Datenbank wird eingerichtet).
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-ptab="roles">Rollen</button>
+        <button class="tab" data-ptab="players">Spieler</button>
+      </div>
+
+      <section data-ppanel="roles">
+        <div class="section-head">
+          <p class="muted small-text">Rollen gelten auf allen Servern. Höheres Gewicht = wichtiger (Prefix und Tab-Sortierung).</p>
+          <div class="server-actions">
+            <button class="btn" id="presets-btn">Standard-Rollen anlegen</button>
+            <button class="btn primary" id="add-role-btn">+ Rolle</button>
+          </div>
+        </div>
+        <div id="role-grid" class="grid"></div>
+      </section>
+
+      <section data-ppanel="players" class="hidden">
+        <form id="player-search" class="console-input">
+          <input id="player-name" placeholder="Spielername, z. B. Notch" autocomplete="off" maxlength="16">
+          <button class="btn primary" type="submit">Suchen</button>
+        </form>
+        <p class="muted small-text">Auch Spieler, die noch nie online waren, können gesucht werden – Rechte gelten dann ab dem ersten Join.</p>
+        <p id="player-error" class="error"></p>
+        <div id="player-panel" class="card player-panel hidden"></div>
+        <h2 class="subhead">Spieler mit Rollen</h2>
+        <div id="player-list" class="list tall"></div>
+      </section>
+    </main>
+
+    <main id="servers-page">
+      <div class="section-head">
+        <h2>Server</h2>
+        <button class="btn primary" id="add-btn">+ Server hinzufügen</button>
+      </div>
+      <div id="server-grid" class="grid"></div>
+      <p class="muted hint">Neue Server werden automatisch heruntergeladen, eingerichtet und im Kompass-Menü der Lobby angezeigt. Der erste Start dauert 1–3 Minuten.</p>
+    </main>
+  </section>
+
+  <!-- Server hinzufügen / bearbeiten -->
+  <dialog id="server-dialog">
+    <form id="server-form" method="dialog">
+      <h2 id="server-dialog-title">Server hinzufügen</h2>
+      <label>Anzeigename
+        <input name="name" maxlength="40" placeholder="z. B. Survival" required>
+      </label>
+      <label class="create-only">ID (intern, nicht änderbar)
+        <input name="id" pattern="[a-z0-9][a-z0-9\-]{1,29}" placeholder="z. B. survival" required>
+      </label>
+      <label>Beschreibung (erscheint im GUI)
+        <textarea name="description" rows="2" maxlength="300" placeholder="Vanilla Survival mit Freunden"></textarea>
+      </label>
+      <div class="row">
+        <label>Icon-Item
+          <input name="icon" list="icon-list" placeholder="GRASS_BLOCK">
+          <datalist id="icon-list"></datalist>
+        </label>
+        <label>Platz im GUI (0–53, leer = automatisch)
+          <input name="slot" type="number" min="0" max="53">
+        </label>
+      </div>
+      <label class="create-only">Servertyp
+        <select name="type">
+          <option value="PAPER" selected>Paper – Plugins (empfohlen)</option>
+          <option value="PURPUR">Purpur – Paper mit mehr Einstellungen</option>
+          <option value="FOLIA">Folia – für sehr viele Spieler, wenige Plugins</option>
+          <option value="FABRIC">Fabric – Mods</option>
+        </select>
+      </label>
+      <div class="row create-only">
+        <label>Minecraft-Version
+          <input name="version" value="LATEST" placeholder="LATEST oder z. B. 26.3">
+        </label>
+        <label>RAM
+          <select name="memory">
+            <option>1G</option><option selected>2G</option><option>3G</option><option>4G</option><option>6G</option><option>8G</option>
+          </select>
+        </label>
+      </div>
+      <label class="checkbox restrict-row"><input type="checkbox" name="restricted"> Geschützt – nur mit Recht <code id="restrict-perm">network.server.&lt;id&gt;</code> betretbar</label>
+      <label class="edit-only checkbox"><input type="checkbox" name="hidden"> Im GUI ausblenden</label>
+      <p id="server-error" class="error"></p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" data-close>Abbrechen</button>
+        <button class="btn primary" type="submit">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Konsole -->
+  <dialog id="console-dialog" class="wide">
+    <div class="console-head">
+      <h2 id="console-title">Konsole</h2>
+      <button class="btn ghost" type="button" data-close>Schließen</button>
+    </div>
+    <pre id="console-output" class="console"></pre>
+    <form id="console-form" class="console-input">
+      <input id="console-command" placeholder="Befehl, z. B. op DeinName" autocomplete="off">
+      <button class="btn primary" type="submit">Senden</button>
+    </form>
+  </dialog>
+
+  <!-- Plugins / Mods -->
+  <dialog id="plugins-dialog" class="wide">
+    <div class="console-head">
+      <div>
+        <h2 id="plugins-title">Plugins</h2>
+        <p id="plugins-sub" class="muted small-text"></p>
+      </div>
+      <button class="btn ghost" type="button" data-close>Schließen</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="installed">Installiert</button>
+      <button class="tab" data-tab="search">Modrinth durchsuchen</button>
+      <button class="tab" data-tab="upload">.jar hochladen</button>
+    </div>
+    <div id="restart-hint" class="notice hidden">
+      Änderungen werden erst nach einem Neustart aktiv.
+      <button class="btn small primary" id="restart-from-plugins">Jetzt neu starten</button>
+    </div>
+
+    <div class="tab-panel" data-panel="installed">
+      <div id="plugin-list" class="list"></div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="search">
+      <form id="search-form" class="console-input">
+        <input id="search-query" placeholder="z. B. EssentialsX, LuckPerms, WorldEdit …" autocomplete="off">
+        <button class="btn primary" type="submit">Suchen</button>
+      </form>
+      <div id="search-results" class="list"></div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="upload">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="upload-input" accept=".jar" multiple hidden>
+        <strong>.jar-Dateien hierher ziehen</strong>
+        <span class="muted">oder klicken zum Auswählen (max. 100 MB)</span>
+      </label>
+      <p id="upload-status" class="muted"></p>
+    </div>
+    <p id="plugins-error" class="error"></p>
+  </dialog>
+
+  <!-- Datei-Editor -->
+  <dialog id="files-dialog" class="wide">
+    <div class="console-head">
+      <h2 id="files-title">Dateien</h2>
+      <button class="btn ghost" type="button" data-close>Schließen</button>
+    </div>
+    <div id="files-breadcrumb" class="breadcrumb"></div>
+    <div id="files-browser" class="list files"></div>
+    <div id="files-editor" class="hidden">
+      <textarea id="files-content" spellcheck="false"></textarea>
+      <div class="dialog-actions">
+        <span id="files-status" class="muted"></span>
+        <button class="btn ghost" type="button" id="files-back">Zurück</button>
+        <button class="btn primary" type="button" id="files-save">Speichern</button>
+      </div>
+    </div>
+    <p id="files-error" class="error"></p>
+  </dialog>
+
+  <!-- Rolle bearbeiten -->
+  <dialog id="role-dialog" class="wide">
+    <div class="console-head">
+      <h2 id="role-title">Rolle</h2>
+      <button class="btn ghost" type="button" data-close>Schließen</button>
+    </div>
+    <form id="role-form">
+      <div class="row">
+        <label class="role-create-only">Name (intern, a-z und 0-9)
+          <input name="name" pattern="[a-z0-9]{1,36}" placeholder="z. B. builder">
+        </label>
+        <label>Anzeigename
+          <input name="displayName" maxlength="64" placeholder="z. B. Builder">
+        </label>
+        <label>Gewicht (0–1000)
+          <input name="weight" type="number" min="0" max="1000" value="10">
+        </label>
+      </div>
+      <div class="row">
+        <label>Prefix
+          <input name="prefix" maxlength="64" placeholder="&a[Builder] &f">
+        </label>
+        <label>Suffix
+          <input name="suffix" maxlength="64" placeholder="">
+        </label>
+      </div>
+      <div class="color-help" id="color-help"></div>
+      <div class="preview-box">Vorschau: <span id="role-preview" class="mc"></span></div>
+      <fieldset>
+        <legend>Erbt alle Rechte von</legend>
+        <div id="role-parents" class="checks"></div>
+      </fieldset>
+      <p id="role-error" class="error"></p>
+      <div class="dialog-actions">
+        <button class="btn danger" type="button" id="role-delete">Rolle löschen</button>
+        <span class="grow"></span>
+        <button class="btn primary" type="submit">Speichern</button>
+      </div>
+    </form>
+
+    <div id="role-perms" class="hidden">
+      <h2 class="subhead">Rechte dieser Rolle</h2>
+      <div class="perm-editor" id="role-perm-editor"></div>
+    </div>
+  </dialog>
+
+  <datalist id="perm-suggestions">
+    <option value="*">Alle Rechte</option>
+    <option value="minecraft.command.gamemode"></option>
+    <option value="minecraft.command.teleport"></option>
+    <option value="minecraft.command.give"></option>
+    <option value="minecraft.command.kick"></option>
+    <option value="minecraft.command.ban"></option>
+    <option value="minecraft.command.time"></option>
+    <option value="minecraft.command.weather"></option>
+    <option value="minecraft.command.op"></option>
+    <option value="lobby.build"></option>
+    <option value="luckperms.*"></option>
+    <option value="velocity.command.server"></option>
+    <option value="essentials.*"></option>
+    <option value="essentials.fly"></option>
+    <option value="essentials.home"></option>
+    <option value="essentials.sethome"></option>
+    <option value="essentials.tpa"></option>
+    <option value="essentials.kick"></option>
+    <option value="essentials.mute"></option>
+    <option value="essentials.ban"></option>
+    <option value="worldedit.*"></option>
+    <option value="worldguard.*"></option>
+  </datalist>
+
+  <script src="app.js"></script>
+  <script src="perms.js"></script>
+  <script src="lobby.js"></script>
+  <script src="players.js"></script>
+  <script src="motd.js"></script>
+</body>
+</html>
