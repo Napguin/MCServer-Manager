@@ -27,7 +27,7 @@ ssh root@DEINE-SERVER-IP
 ```
 
 ```bash
-apt update && apt install -y git && git clone https://github.com/GITHUB-NAME/REPO-NAME.git mcnetwork && cd mcnetwork && bash install.sh
+apt update && apt install -y git && git clone https://github.com/Napguin/MCServer-Manager.git mcnetwork && cd mcnetwork && bash install.sh
 ```
 
 Ist das Repository privat, fragt `git clone` nach deinem GitHub-Namen und als Passwort nach einem **Personal Access Token** (GitHub → Settings → Developer settings → Personal access tokens, Recht „Contents: Read“).
