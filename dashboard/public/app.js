@@ -609,13 +609,14 @@ filesDialog.addEventListener('cancel', (e) => {
 
 // ---------- Navigation ----------
 
-document.querySelectorAll('.nav-btn').forEach((btn) => btn.addEventListener('click', () => {
-  document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b === btn));
-  for (const page of ['servers', 'players', 'lobby', 'motd', 'perms']) {
+document.querySelectorAll('.nav-btn[data-page]').forEach((btn) => btn.addEventListener('click', () => {
+  document.querySelectorAll('.nav-btn[data-page]').forEach((b) => b.classList.toggle('active', b === btn));
+  for (const page of ['servers', 'players', 'lobby', 'extras', 'motd', 'perms']) {
     $(`#${page}-page`).classList.toggle('hidden', btn.dataset.page !== page);
   }
   if (btn.dataset.page === 'perms') loadPerms();
   if (btn.dataset.page === 'lobby') loadLobby();
+  if (btn.dataset.page === 'extras') loadExtras();
   if (btn.dataset.page === 'players') startModeration();
   if (btn.dataset.page === 'motd') loadMotd();
 }));

@@ -26,6 +26,7 @@
         <button class="nav-btn active" data-page="servers">Server</button>
         <button class="nav-btn" data-page="players">Spieler</button>
         <button class="nav-btn" data-page="lobby">Lobby &amp; Tab</button>
+        <button class="nav-btn" data-page="extras">Lobby-Extras</button>
         <button class="nav-btn" data-page="motd">MOTD</button>
         <button class="nav-btn" data-page="perms">Rechte</button>
       </nav>
@@ -182,6 +183,49 @@
           <li><code>/spawn</code> – zurück zum Spawn · <code>/servers</code> – Serverauswahl öffnen</li>
         </ul>
       </div>
+    </main>
+
+    <main id="extras-page" class="hidden">
+      <div class="section-head">
+        <h2>Lobby-Extras</h2>
+        <span id="extras-status" class="muted"></span>
+      </div>
+      <div class="card lobby-card help">
+        <h3>So geht's</h3>
+        <p class="muted small-text">Aufstellen und verschieben geht im Spiel (Recht <code>lobby.admin</code>), Texte und Einstellungen kannst du hier ändern. Änderungen sind nach wenigen Sekunden in der Lobby.</p>
+        <ul class="muted small-text commands">
+          <li><code>/holo create &lt;name&gt; &lt;Text&gt;</code> – Hologramm an deiner Position (<code>|</code> = neue Zeile)</li>
+          <li><code>/npc create &lt;name&gt; &lt;Spielername|Mob&gt;</code> – NPC mit Skin (z. B. <code>Notch</code>) oder als Mob (z. B. <code>villager</code>), dann <code>/npc action &lt;name&gt; server survival</code></li>
+          <li><code>/serversign &lt;server-id&gt;</code> – angeschautes Schild wird zum Server-Schild mit Live-Status</li>
+          <li><code>/parkour create &lt;name&gt;</code>, <code>/parkour checkpoint &lt;name&gt;</code>, <code>/parkour finish &lt;name&gt;</code>, <code>/parkour leaderboard &lt;name&gt;</code> – Jump &amp; Run, Druckplatten werden automatisch gelegt</li>
+          <li>Platzhalter in Hologrammen und NPC-Namen: <code>&lt;online&gt;</code>, <code>&lt;network&gt;</code>, <code>&lt;players:survival&gt;</code>, <code>&lt;status:survival&gt;</code></li>
+        </ul>
+      </div>
+
+      <h3 class="extras-title">Hologramme</h3>
+      <div id="extras-holograms" class="extras-list"></div>
+
+      <h3 class="extras-title">NPCs</h3>
+      <div id="extras-npcs" class="extras-list"></div>
+
+      <h3 class="extras-title">Server-Schilder</h3>
+      <div id="extras-signs" class="extras-list"></div>
+
+      <h3 class="extras-title">Jump &amp; Runs</h3>
+      <div id="extras-parkours" class="extras-list"></div>
+
+      <div class="section-head extras-title">
+        <h3>Cosmetics</h3>
+        <div class="server-actions">
+          <span id="cosmetics-status" class="muted"></span>
+          <button id="cosmetics-save" class="btn primary" type="button">Speichern</button>
+        </div>
+      </div>
+      <div class="card lobby-card">
+        <div class="checks toggles"><label><input id="cosmetics-enabled" type="checkbox"> Cosmetics in der Lobby (Truhe im Inventar)</label></div>
+        <p class="muted small-text">„Premium“ bekommen nur Spieler mit dem Recht <code>lobby.cosmetics.premium</code> (z. B. für eine VIP-Rolle unter „Rechte“) oder einzeln <code>lobby.cosmetic.&lt;kategorie&gt;.&lt;name&gt;</code>, etwa <code>lobby.cosmetic.pet.fox</code>.</p>
+      </div>
+      <div id="extras-cosmetics" class="cosmetic-grid"></div>
     </main>
 
     <main id="motd-page" class="hidden">
@@ -490,5 +534,6 @@
   <script src="lobby.js"></script>
   <script src="players.js"></script>
   <script src="motd.js"></script>
+  <script src="extras.js"></script>
 </body>
 </html>

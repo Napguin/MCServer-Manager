@@ -4,6 +4,7 @@ import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
@@ -68,15 +69,16 @@ final class LobbyDisplay {
     }
 
     void tick() {
-        bossBarDe.name(MM.deserialize(plugin.dashboard().settings(true).bossBar(), globalResolver(true)));
-        bossBarEn.name(MM.deserialize(plugin.dashboard().settings(false).bossBar(), globalResolver(false)));
+        bossBarDe.name(MM.deserialize(plugin.dashboard().settings(true).bossBar(), resolver(true)));
+        bossBarEn.name(MM.deserialize(plugin.dashboard().settings(false).bossBar(), resolver(false)));
         hologramDe = updateHologram(hologramDe, true);
         hologramEn = updateHologram(hologramEn, false);
         for (Player player : Bukkit.getOnlinePlayers()) update(player);
         plugin.hub().world().setTime(6000); // immer Mittag
     }
 
-    private TagResolver globalResolver(boolean german) {
+    /** Platzhalter für alle Lobby-Texte; <players:id> und <status:id> zeigen einzelne Server. */
+    TagResolver resolver(boolean german) {
         LobbySettings settings = plugin.dashboard().settings(german);
         int lobbyOnline = Bukkit.getOnlinePlayers().size();
         long serversOnline = plugin.dashboard().servers().stream().filter(ServerEntry::online).count();
@@ -84,7 +86,27 @@ final class LobbyDisplay {
                 Placeholder.parsed("network", settings.networkName()),
                 Placeholder.unparsed("online", String.valueOf(Math.max(plugin.dashboard().totalPlayers(), lobbyOnline))),
                 Placeholder.unparsed("lobby_online", String.valueOf(lobbyOnline)),
-                Placeholder.unparsed("servers", String.valueOf(serversOnline)));
+                Placeholder.unparsed("servers", String.valueOf(serversOnline)),
+                TagResolver.resolver("players", (args, ctx) -> {
+                    ServerEntry server = server(args.popOr("<players:server-id>").value());
+                    return Tag.preProcessParsed(server == null ? "?" : String.valueOf(server.players()));
+                }),
+                TagResolver.resolver("status", (args, ctx) -> {
+                    ServerEntry server = server(args.popOr("<status:server-id>").value());
+                    return Tag.preProcessParsed(statusText(server, german));
+                }));
+    }
+
+    private ServerEntry server(String id) {
+        return plugin.dashboard().servers().stream().filter(s -> s.id().equalsIgnoreCase(id)).findFirst().orElse(null);
+    }
+
+    /** Kurzer Status eines Servers als MiniMessage, z. B. für NPCs und Hologramme. */
+    static String statusText(ServerEntry server, boolean german) {
+        if (server == null) return german ? "<gray>unbekannt" : "<gray>unknown";
+        if (server.online()) return "<green>● " + server.players() + (german ? " Spieler" : " players");
+        if ("starting".equals(server.status())) return german ? "<gold>● startet ..." : "<gold>● starting ...";
+        return "<red>● Offline";
     }
 
     private void update(Player player) {
@@ -92,7 +114,7 @@ final class LobbyDisplay {
         if (board == null) return;
         boolean german = Lang.german(player.locale());
         LobbySettings settings = plugin.dashboard().settings(german);
-        TagResolver resolver = TagResolver.resolver(globalResolver(german),
+        TagResolver resolver = TagResolver.resolver(resolver(german),
                 Placeholder.unparsed("player", player.getName()),
                 Placeholder.component("rank", plugin.rank(player)));
 
@@ -144,7 +166,7 @@ final class LobbyDisplay {
                 d.setShadowed(true);
             });
         }
-        display.text(MM.deserialize(settings.hologram(), globalResolver(german)));
+        display.text(MM.deserialize(settings.hologram(), resolver(german)));
         return display;
     }
 

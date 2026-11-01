@@ -38,13 +38,17 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import com.google.gson.JsonObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 /**
  * Das Lobby-System: eigene Lobby-Welt, Kompass mit Serverauswahl, Spieler verstecken,
@@ -63,6 +67,10 @@ public class LobbySelector extends JavaPlugin implements Listener {
     private HubWorld hub;
     private LobbyDisplay display;
     private LobbyFeatures features;
+    private LobbyObjects objects;
+    private Parkour parkour;
+    private Cosmetics cosmetics;
+    private ExtrasCommands extrasCommands;
     private boolean luckPerms;
 
     private final Set<UUID> building = ConcurrentHashMap.newKeySet();
@@ -83,12 +91,24 @@ public class LobbySelector extends JavaPlugin implements Listener {
 
         display = new LobbyDisplay(this);
         features = new LobbyFeatures(this);
+        parkour = new Parkour(this);
+        objects = new LobbyObjects(this);
+        cosmetics = new Cosmetics(this);
+        extrasCommands = new ExtrasCommands(this);
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(features, this);
+        getServer().getPluginManager().registerEvents(objects, this);
+        getServer().getPluginManager().registerEvents(parkour, this);
+        getServer().getPluginManager().registerEvents(cosmetics, this);
         getServer().getScheduler().runTaskTimerAsynchronously(this, dashboard::refresh, 1L, 60L);
-        getServer().getScheduler().runTaskTimer(this, display::tick, 20L, 40L);
+        getServer().getScheduler().runTaskTimer(this, this::slowTick, 20L, 40L);
+        getServer().getScheduler().runTaskTimer(this, objects::lookTick, 25L, 5L);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            parkour.timerTick();
+            cosmetics.tick();
+        }, 22L, 2L);
 
         // Nach einem Reload die schon verbundenen Spieler übernehmen
         for (Player player : getServer().getOnlinePlayers()) {
@@ -99,7 +119,25 @@ public class LobbySelector extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        if (parkour != null) parkour.shutdown();
+        if (objects != null) objects.removeAll();
+        if (cosmetics != null) cosmetics.shutdown();
         if (display != null) display.shutdown();
+    }
+
+    /** Alle 2 Sekunden: Scoreboard, Hologramme, NPCs, Schilder und Bestenlisten aktualisieren. */
+    private void slowTick() {
+        display.tick();
+        refreshExtras();
+    }
+
+    private void refreshExtras() {
+        objects.tick();
+        parkour.tick();
+        for (Player player : getServer().getOnlinePlayers()) {
+            objects.apply(player);
+            parkour.apply(player);
+        }
     }
 
     private static String env(String key, String fallback) {
@@ -120,6 +158,59 @@ public class LobbySelector extends JavaPlugin implements Listener {
         return hub;
     }
 
+    LobbyDisplay display() {
+        return display;
+    }
+
+    LobbyObjects objects() {
+        return objects;
+    }
+
+    Parkour parkour() {
+        return parkour;
+    }
+
+    Cosmetics cosmetics() {
+        return cosmetics;
+    }
+
+    /** Unsichtbare Spieler (/vanish) sollen sich nicht durch Partikel verraten. */
+    boolean isVanishedLike(Player player) {
+        if (!luckPerms) return false;
+        try {
+            return RankProvider.vanished(player);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Eintrag der Lobby-Extras im Dashboard speichern (data = null löscht ihn) und dem Spieler
+     * Bescheid geben. Danach werden Hologramme, NPCs usw. sofort neu aufgebaut.
+     */
+    void saveExtra(Player player, String kind, String id, JsonObject data, String okDe, String okEn) {
+        String by = player.getName();
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            String error = null;
+            try {
+                dashboard.saveExtra(kind, id, data, by);
+            } catch (IOException e) {
+                error = e.getMessage();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                error = "abgebrochen";
+            }
+            String failure = error;
+            getServer().getScheduler().runTask(this, () -> {
+                if (failure == null) refreshExtras();
+                if (!player.isOnline()) return;
+                player.sendMessage(MM.deserialize(failure == null
+                        ? "<green>" + Lang.t(player, okDe, okEn)
+                        : Lang.t(player, "<red>Speichern fehlgeschlagen: ", "<red>Saving failed: ") + MM.escapeTags(failure)));
+            });
+        });
+    }
+
     boolean isBuilding(Player player) {
         return building.contains(player.getUniqueId());
     }
@@ -137,7 +228,7 @@ public class LobbySelector extends JavaPlugin implements Listener {
 
     // ---------- Items ----------
 
-    private ItemStack item(String type, Material material, String name) {
+    ItemStack item(String type, Material material, String name) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(MM.deserialize(name).decoration(TextDecoration.ITALIC, false));
@@ -172,6 +263,12 @@ public class LobbySelector extends JavaPlugin implements Listener {
         if (settings(player).playerHider()) {
             player.getInventory().setItem(HIDER_SLOT, hiderItem(player, hiding.contains(player.getUniqueId())));
         }
+        cosmetics.apply(player);
+    }
+
+    /** Nach einem Jump & Run: Lobby-Items wieder ausgeben. */
+    void restoreLobby(Player player) {
+        if (!isBuilding(player)) giveLobbyItems(player);
     }
 
     private void preparePlayer(Player player, boolean teleport) {
@@ -207,11 +304,25 @@ public class LobbySelector extends JavaPlugin implements Listener {
                 : Lang.t(player, "<green>Andere Spieler sind sichtbar", "<green>Other players are visible")));
     }
 
-    private void openMenu(Player player) {
+    void openMenu(Player player) {
         String title = Lang.german(player.locale())
                 ? getConfig().getString("selector.gui-title", "<dark_gray>Wähle einen Server")
                 : getConfig().getString("selector.gui-title-en", "<dark_gray>Choose a server");
         player.openInventory(new SelectorMenu(title, dashboard.servers(), player).getInventory());
+    }
+
+    /** Zu einem Server wechseln (NPCs, Schilder) – mit denselben Prüfungen wie im GUI. */
+    void tryConnect(Player player, String serverId) {
+        ServerEntry server = dashboard.servers().stream().filter(s -> s.id().equalsIgnoreCase(serverId)).findFirst().orElse(null);
+        if (server == null) {
+            player.sendMessage(MM.deserialize(Lang.t(player, "<red>Diesen Server gibt es nicht.", "<red>This server doesn't exist.")));
+        } else if (!SelectorMenu.canJoin(player, server)) {
+            player.sendMessage(MM.deserialize(Lang.t(player, "<red>Du hast keinen Zugang zu diesem Server.", "<red>You don't have access to this server.")));
+        } else if (!server.online()) {
+            player.sendMessage(MM.deserialize(Lang.t(player, "<red>Dieser Server ist gerade nicht online.", "<red>This server is offline right now.")));
+        } else {
+            connect(player, server);
+        }
     }
 
     private void connect(Player player, ServerEntry server) {
@@ -238,7 +349,23 @@ public class LobbySelector extends JavaPlugin implements Listener {
         }
         switch (command.getName().toLowerCase()) {
             case "servers" -> openMenu(player);
-            case "spawn" -> player.teleport(hub.spawn());
+            case "spawn" -> {
+                parkour.stop(player, true);
+                player.teleport(hub.spawn());
+            }
+            case "cosmetics" -> cosmetics.openMain(player);
+            case "holo" -> {
+                return extrasCommands.holo(player, args);
+            }
+            case "npc" -> {
+                return extrasCommands.npc(player, args);
+            }
+            case "serversign" -> {
+                return extrasCommands.serverSign(player, args);
+            }
+            case "parkour" -> {
+                return parkour.command(player, args);
+            }
             case "setspawn", "sethologram" -> {
                 if (!player.getWorld().equals(hub.world())) {
                     player.sendMessage(MM.deserialize(Lang.t(player, "<red>Das geht nur in der Lobby-Welt.", "<red>This only works in the lobby world.")));
@@ -256,6 +383,7 @@ public class LobbySelector extends JavaPlugin implements Listener {
                     preparePlayer(player, false);
                     player.sendMessage(MM.deserialize(Lang.t(player, "<yellow>Baumodus <red>aus<yellow>.", "<yellow>Build mode <red>off<yellow>.")));
                 } else {
+                    parkour.stop(player, false);
                     building.add(player.getUniqueId());
                     player.getInventory().clear();
                     player.setGameMode(GameMode.CREATIVE);
@@ -271,6 +399,15 @@ public class LobbySelector extends JavaPlugin implements Listener {
         return true;
     }
 
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        String name = command.getName().toLowerCase();
+        if (name.equals("parkour") && !sender.hasPermission("lobby.admin")) {
+            return args.length == 1 ? Stream.of("leave", "list", "tp").filter(o -> o.startsWith(args[0].toLowerCase())).toList() : List.of();
+        }
+        return extrasCommands.complete(name, args);
+    }
+
     // ---------- Beitreten / Verlassen ----------
 
     @EventHandler
@@ -280,6 +417,8 @@ public class LobbySelector extends JavaPlugin implements Listener {
         if (settings.hideJoinMessages()) event.joinMessage(null);
         preparePlayer(player, true);
         display.add(player);
+        objects.apply(player);
+        parkour.apply(player);
         if (!settings.welcomeTitle().isBlank() || !settings.welcomeSubtitle().isBlank()) {
             var resolver = Placeholder.unparsed("player", player.getName());
             var network = Placeholder.parsed("network", settings.networkName());
@@ -297,6 +436,9 @@ public class LobbySelector extends JavaPlugin implements Listener {
         hiding.remove(player.getUniqueId());
         hiderCooldown.remove(player.getUniqueId());
         features.forget(player);
+        parkour.forget(player);
+        objects.forget(player);
+        cosmetics.forget(player);
         display.remove(player);
     }
 
@@ -333,6 +475,27 @@ public class LobbySelector extends JavaPlugin implements Listener {
                 toggleHider(player);
                 return;
             }
+            if (type != null) {
+                switch (type) {
+                    case Cosmetics.ITEM_MENU -> cosmetics.openMain(player);
+                    case Cosmetics.ITEM_GADGET -> {
+                        // Die Angel (Enterhaken) muss normal ausgeworfen werden
+                        if (event.getItem().getType() == Material.FISHING_ROD) return;
+                        cosmetics.useGadget(player);
+                    }
+                    case Parkour.ITEM_CHECKPOINT -> parkour.backToCheckpoint(player);
+                    case Parkour.ITEM_RESTART -> parkour.restart(player);
+                    case Parkour.ITEM_LEAVE -> {
+                        parkour.stop(player, true);
+                        player.sendMessage(MM.deserialize(Lang.t(player, "<yellow>Jump & Run verlassen.", "<yellow>Left the parkour.")));
+                    }
+                    default -> {
+                        return;
+                    }
+                }
+                event.setCancelled(true);
+                return;
+            }
         }
         if (isBuilding(player)) return;
         // Türen, Truhen, Knöpfe usw. nicht benutzen; Druckplatten (Launchpads) bleiben erlaubt
@@ -345,6 +508,13 @@ public class LobbySelector extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder(false) instanceof Cosmetics.Menu menu) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() == event.getView().getTopInventory() && event.getWhoClicked() instanceof Player player) {
+                cosmetics.click(player, menu, event.getSlot());
+            }
+            return;
+        }
         if (event.getInventory().getHolder(false) instanceof SelectorMenu menu) {
             event.setCancelled(true);
             if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -368,6 +538,7 @@ public class LobbySelector extends JavaPlugin implements Listener {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         if (event.getInventory().getHolder(false) instanceof SelectorMenu
+                || event.getInventory().getHolder(false) instanceof Cosmetics.Menu
                 || (event.getWhoClicked() instanceof Player player && !isBuilding(player))) {
             event.setCancelled(true);
         }

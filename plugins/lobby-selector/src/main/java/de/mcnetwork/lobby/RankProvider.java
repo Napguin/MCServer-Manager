@@ -33,4 +33,9 @@ final class RankProvider {
         boolean defaultRank = name == null || name.equals("default");
         return Component.text(defaultRank ? Lang.t(player, "Spieler", "Player") : name);
     }
+
+    /** Unsichtbar per /vanish (das Netzwerk-Plugin speichert das als LuckPerms-Meta). */
+    static boolean vanished(Player player) {
+        return "true".equals(LuckPermsProvider.get().getPlayerAdapter(Player.class).getMetaData(player).getMetaValue("vanished"));
+    }
 }

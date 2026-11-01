@@ -12,6 +12,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 /** Holt Serverliste, Lobby-Einstellungen und Spielerzahl vom Dashboard (läuft asynchron). */
@@ -28,6 +29,7 @@ final class DashboardClient {
     private volatile LobbySettings settingsDe = LobbySettings.defaults(true);
     private volatile LobbySettings settingsEn = LobbySettings.defaults(false);
     private volatile int totalPlayers;
+    private volatile JsonObject extras = new JsonObject();
     private boolean warned;
 
     DashboardClient(Logger logger, String url, String apiKey) {
@@ -46,6 +48,62 @@ final class DashboardClient {
 
     int totalPlayers() {
         return totalPlayers;
+    }
+
+    /** Hologramme, NPCs, Schilder, Jump & Runs, Cosmetics und Bestenlisten (nie verändern). */
+    JsonObject extras() {
+        return extras;
+    }
+
+    /**
+     * Eintrag der Lobby-Extras speichern (data = null löscht ihn). Blockiert – nur asynchron aufrufen.
+     * Wirft eine IOException mit der Fehlermeldung des Dashboards.
+     */
+    void saveExtra(String kind, String id, JsonObject data, String by) throws IOException, InterruptedException {
+        JsonObject body = new JsonObject();
+        body.addProperty("kind", kind);
+        body.addProperty("id", id);
+        body.add("data", data);
+        body.addProperty("by", by);
+        JsonObject answer = post("/api/internal/extras", body);
+        if (answer.has("extras")) extras = answer.getAsJsonObject("extras");
+    }
+
+    /** Zeit eines Jump & Runs melden. Antwort: improved, previous, best, rank, record, leaderboard. */
+    JsonObject submitTime(String parkour, UUID uuid, String name, long ms) throws IOException, InterruptedException {
+        JsonObject body = new JsonObject();
+        body.addProperty("parkour", parkour);
+        body.addProperty("uuid", uuid.toString());
+        body.addProperty("name", name);
+        body.addProperty("ms", ms);
+        JsonObject answer = post("/api/internal/parkour/time", body);
+        // Neue Bestenliste sofort übernehmen, nicht erst beim nächsten Abruf
+        if (answer.has("leaderboard") && extras.has("leaderboards")) {
+            JsonObject copy = extras.deepCopy();
+            copy.getAsJsonObject("leaderboards").add(parkour, answer.get("leaderboard"));
+            extras = copy;
+        }
+        return answer;
+    }
+
+    private JsonObject post(String path, JsonObject body) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url + path))
+                .header("X-Api-Key", apiKey)
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofSeconds(8))
+                .POST(HttpRequest.BodyPublishers.ofString(gson.toJson(body))).build();
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        JsonObject answer;
+        try {
+            answer = gson.fromJson(response.body(), JsonObject.class);
+        } catch (RuntimeException e) {
+            answer = null;
+        }
+        if (response.statusCode() != 200) {
+            String error = answer != null && answer.has("error") ? answer.get("error").getAsString() : "HTTP " + response.statusCode();
+            throw new IOException(error);
+        }
+        return answer == null ? new JsonObject() : answer;
     }
 
     void refresh() {
@@ -82,6 +140,7 @@ final class DashboardClient {
                 settingsDe = LobbySettings.fromJson(lobby, true);
                 settingsEn = LobbySettings.fromJson(lobby, false);
             }
+            if (body.has("extras") && body.get("extras").isJsonObject()) extras = body.getAsJsonObject("extras");
             totalPlayers = body.has("totalPlayers") ? body.get("totalPlayers").getAsInt() : 0;
             warned = false;
         } catch (IOException e) {

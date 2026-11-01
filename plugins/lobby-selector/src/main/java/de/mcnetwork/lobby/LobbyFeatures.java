@@ -37,7 +37,8 @@ final class LobbyFeatures implements Listener {
         GameMode mode = player.getGameMode();
         return plugin.settings(player).doubleJump()
                 && (mode == GameMode.ADVENTURE || mode == GameMode.SURVIVAL)
-                && !plugin.isBuilding(player);
+                && !plugin.isBuilding(player)
+                && !plugin.parkour().isRunning(player);
     }
 
     private static boolean standsOnBlock(Player player) {
@@ -53,7 +54,8 @@ final class LobbyFeatures implements Listener {
         if (plugin.settings(player).voidTeleport() && to.getY() < plugin.hub().voidLevel()
                 && to.getWorld().equals(plugin.hub().world())) {
             player.setFallDistance(0);
-            player.teleport(plugin.hub().spawn());
+            if (plugin.parkour().isRunning(player)) plugin.parkour().backToCheckpoint(player);
+            else player.teleport(plugin.hub().spawn());
             return;
         }
         // Flugerlaubnis = Doppelsprung bereit, sobald der Spieler wieder steht
@@ -78,7 +80,8 @@ final class LobbyFeatures implements Listener {
         if (event.getAction() != Action.PHYSICAL || event.getClickedBlock() == null) return;
         if (event.getClickedBlock().getType() != Material.LIGHT_WEIGHTED_PRESSURE_PLATE) return;
         Player player = event.getPlayer();
-        if (!plugin.settings(player).launchPads()) return;
+        if (!plugin.settings(player).launchPads() || plugin.parkour().isRunning(player)) return;
+        if (plugin.parkour().isPoint(event.getClickedBlock())) return; // Ziel-Druckplatte eines Jump & Runs
         long now = System.currentTimeMillis();
         if (now - padCooldown.getOrDefault(player.getUniqueId(), 0L) < 1000) return;
         padCooldown.put(player.getUniqueId(), now);

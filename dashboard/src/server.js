@@ -12,6 +12,7 @@ import { LuckPerms, permissionsRouter } from './luckperms.js';
 import { LobbySettings, LOBBY_DEFAULTS } from './lobby.js';
 import { Moderation, banMessage } from './moderation.js';
 import { MotdSettings, MOTD_DEFAULTS } from './motd.js';
+import { LobbyExtras } from './extras.js';
 
 const config = {
   port: Number(process.env.PORT || 8080),
@@ -54,6 +55,7 @@ const files = new ServerFiles(mc, store);
 const lp = new LuckPerms(config.lpApiUrl, config.lpApiKey);
 const lobbySettings = new LobbySettings(path.join(config.dataDir, 'dashboard', 'lobby.json'));
 const motdSettings = new MotdSettings(path.join(config.dataDir, 'dashboard', 'motd.json'));
+const extras = new LobbyExtras(path.join(config.dataDir, 'dashboard', 'lobby-extras.json'));
 
 // Live-Status, den das Velocity-Plugin alle paar Sekunden meldet
 let liveStatus = { servers: {}, players: [], totalPlayers: 0, updatedAt: 0 };
@@ -155,6 +157,8 @@ app.get('/api/internal/servers', requireApiKey, async (req, res) => {
     })),
     // Für die Plugins: Texte/Schalter, Spieler im ganzen Netzwerk, Banns und Mutes
     lobby: lobbySettings.get(),
+    // Hologramme, NPCs, Schilder, Jump & Runs und Cosmetics (nur das Lobby-Plugin braucht sie)
+    extras: extras.forPlugin(),
     totalPlayers: proxyOnline() ? liveStatus.totalPlayers : 0,
     players: onlinePlayers(),
     bans: moderation.activeBans().map((b) => ({
@@ -216,6 +220,20 @@ app.post('/api/internal/status', requireApiKey, (req, res) => {
   }
   // Velocity führt anstehende Kicks (auch nach einem Bann) sofort aus
   res.json({ ok: true, kicks: moderation.takeKicks() });
+});
+
+// Lobby-Extras aus dem Spiel anlegen, verschieben oder löschen (Recht lobby.admin prüft das Plugin)
+app.post('/api/internal/extras', requireApiKey, async (req, res) => {
+  const { kind, id, data = null, by } = req.body ?? {};
+  const saved = await extras.put(kind, String(id ?? ''), data);
+  console.log(`${String(by ?? '?').slice(0, 32)} (im Spiel): ${kind}/${id} ${saved ? 'gespeichert' : 'gelöscht'}`);
+  res.json({ ok: true, entry: saved, extras: extras.forPlugin() });
+});
+
+// Ziel eines Jump & Runs erreicht
+app.post('/api/internal/parkour/time', requireApiKey, async (req, res) => {
+  const result = await extras.submitTime(req.body ?? {});
+  res.json({ ...result, leaderboard: extras.ranking(req.body.parkour).slice(0, 10).map(({ name, ms }) => ({ name, ms })) });
 });
 
 // Moderation aus dem Spiel (Admin-GUI und Befehle auf den Servern)
@@ -488,6 +506,28 @@ admin.put('/lobby', async (req, res) => {
   res.json({ settings: await lobbySettings.update(req.body ?? {}) });
 });
 
+// ----- Lobby-Extras -----
+
+admin.get('/extras', (req, res) => res.json(extras.forDashboard()));
+
+admin.put('/extras/cosmetics', async (req, res) => {
+  res.json({ cosmetics: await extras.setCosmetics(req.body ?? {}) });
+});
+
+admin.put('/extras/:kind/:id', async (req, res) => {
+  res.json({ entry: await extras.edit(req.params.kind, req.params.id, req.body ?? {}) });
+});
+
+admin.delete('/extras/parkours/:id/times', async (req, res) => {
+  await extras.resetTimes(req.params.id);
+  res.json({ ok: true });
+});
+
+admin.delete('/extras/:kind/:id', async (req, res) => {
+  await extras.remove(req.params.kind, req.params.id);
+  res.json({ ok: true });
+});
+
 admin.get('/proxy/logs', async (req, res) => {
   try {
     res.json({ logs: await mc.proxyLogs(300) });
@@ -550,6 +590,7 @@ await store.load();
 await lobbySettings.load();
 await moderation.load();
 await motdSettings.load();
+await extras.load();
 
 // Lobby beim ersten Start automatisch anlegen
 if (!store.get('lobby')) {

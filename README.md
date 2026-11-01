@@ -107,6 +107,24 @@ Die Lobby ist ein fertiges Lobby-System:
 
 Um die Insel neu bauen zu lassen, löschst du den Ordner `hub` und die Datei `plugins/LobbySelector/hub-gebaut.txt`.
 
+## Lobby-Extras (Seite „Lobby-Extras“)
+
+Hologramme, NPCs, Server-Schilder, Jump & Runs und Cosmetics. Aufstellen geht im Spiel (Recht `lobby.admin`), Texte und Einstellungen lassen sich zusätzlich im Dashboard ändern. Alles wird im Dashboard gespeichert (`data/dashboard/lobby-extras.json`) und ist nach wenigen Sekunden in der Lobby.
+
+| Was | Befehle im Spiel |
+|---|---|
+| Hologramm | `/holo create <name> <Text>` (`\|` = neue Zeile), `/holo text`, `/holo text_en`, `/holo addline`, `/holo movehere`, `/holo scale`, `/holo background on\|off`, `/holo delete`, `/holo list` |
+| NPC | `/npc create <name> <Spielername\|Mob>` – mit Skin (z. B. `Notch`) oder als Mob (z. B. `villager`); `/npc action <name> server <id>` \| `menu` \| `cosmetics` \| `parkour <id>` \| `command <Befehl>` \| `none`; `/npc name`, `/npc name_en`, `/npc skin`, `/npc type`, `/npc look on\|off`, `/npc movehere`, `/npc delete` |
+| Server-Schild | Schild anschauen, `/serversign <server-id>` – zeigt Status und Spielerzahl, Rechtsklick verbindet; `/serversign remove` |
+| Jump & Run | `/parkour create <name> [Anzeigename]` (Start), `/parkour checkpoint <name>`, `/parkour undo <name>`, `/parkour finish <name>`, `/parkour leaderboard <name>`, `/parkour delete <name>`. Druckplatten werden automatisch gelegt. Spieler: `/parkour leave`, `/parkour list`, `/parkour tp <name>` |
+| Cosmetics | Truhe im Inventar oder `/cosmetics`: Partikel-Spuren, Hüte, Gadgets (Feuerwerk, Enterhaken, Paintball, Konfetti, Raketenstiefel, Enderperle) und Haustiere |
+
+- Platzhalter in Hologrammen und NPC-Namen: `<online>`, `<network>`, `<servers>`, `<players:survival>`, `<status:survival>`.
+- NPCs, die auf einen Server schicken, zeigen den Live-Status unter dem Namen.
+- Im Baumodus (`/build`) zeigt Schleichen + Klick auf einen NPC seine Einstellungen; Schleichen + Rechtsklick auf ein Server-Schild lässt es bearbeiten.
+- Premium-Cosmetics (im Dashboard wählbar) brauchen `lobby.cosmetics.premium` – z. B. für eine VIP-Rolle – oder einzeln `lobby.cosmetic.<kategorie>.<name>`.
+- Bestzeiten stehen im Dashboard und lassen sich dort pro Jump & Run zurücksetzen.
+
 ## Serverliste (Seite „MOTD“)
 
 - Zwei Zeilen MOTD mit Farben und Farbverläufen, dazu eine Live-Vorschau wie in der Minecraft-Serverliste.

@@ -237,3 +237,22 @@ legend { color: var(--muted); font-size: .9rem; padding: 0 6px; }
   .row { grid-template-columns: 1fr; }
   .grid { grid-template-columns: 1fr; }
 }
+
+/* Lobby-Extras */
+.extras-title { margin: 28px 0 12px; font-size: 1rem; }
+.extras-list { display: grid; gap: 12px; }
+.extra-item { padding: 14px 16px; display: grid; gap: 12px; }
+.extra-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.extra-body { display: grid; gap: 10px; }
+.extra-body label { font-size: .9rem; color: var(--muted); }
+.extra-body textarea, .extra-body input:not([type=checkbox]) { font-family: ui-monospace, Consolas, monospace; font-size: .88rem; }
+.commands { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.ranking { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 2px; max-width: 360px; }
+.ranking li span { display: inline-block; min-width: 160px; }
+.cosmetic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
+.cosmetic-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.cosmetic-table th { text-align: center; color: var(--muted); font-weight: 500; padding: 4px; }
+.cosmetic-table td { padding: 4px; border-top: 1px solid var(--border); }
+.cosmetic-table td:not(:first-child) { text-align: center; width: 70px; }
+.cosmetic-table input { width: auto; margin: 0; }
+.cosmetic-grid .lobby-card { align-content: start; }

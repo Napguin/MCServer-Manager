@@ -20,10 +20,29 @@ commands:
   build:
     description: Baumodus an/aus (zum Umbauen der Lobby).
     permission: lobby.build
+  cosmetics:
+    description: Öffnet die Cosmetics.
+    aliases: [gadgets]
+  parkour:
+    description: Jump & Run verlassen, auflisten oder einrichten.
+    aliases: [jumpandrun, jnr]
+  holo:
+    description: Hologramme erstellen und bearbeiten.
+    aliases: [hologram]
+    permission: lobby.admin
+  npc:
+    description: NPCs erstellen und bearbeiten.
+    permission: lobby.admin
+  serversign:
+    description: Macht das angeschaute Schild zum Server-Schild.
+    permission: lobby.admin
 permissions:
   lobby.build:
     description: Darf mit /build die Lobby umbauen.
     default: op
   lobby.admin:
-    description: Darf den Spawn setzen.
+    description: Darf Spawn, Hologramme, NPCs, Server-Schilder und Jump & Runs einrichten.
+    default: op
+  lobby.cosmetics.premium:
+    description: Darf alle Premium-Cosmetics benutzen (einzeln - lobby.cosmetic.<kategorie>.<name>).
     default: op
