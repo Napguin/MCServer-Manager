@@ -26,6 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -83,12 +85,31 @@ public class NetworkChat extends JavaPlugin implements Listener, PluginMessageLi
         getServer().getPluginManager().registerEvents(this, this);
 
         getServer().getAsyncScheduler().runAtFixedRate(this, task -> client.refresh(), 1, 3, TimeUnit.SECONDS);
+        // Plugins wie Challenges löschen beim Reset die Welt samt Spielerdaten-Ordner – dann kann
+        // Minecraft Inventare nicht mehr speichern. Ordner deshalb regelmäßig wieder anlegen.
+        getServer().getAsyncScheduler().runAtFixedRate(this, task -> ensurePlayerDataFolders(), 0, 30, TimeUnit.SECONDS);
         getServer().getAsyncScheduler().runAtFixedRate(this, task -> {
             for (Player player : getServer().getOnlinePlayers()) {
                 if (isVanished(player)) player.sendActionBar(MM.deserialize(Lang.t(player,
                         "<light_purple>Du bist unsichtbar <gray>(/vanish)", "<light_purple>You are vanished <gray>(/vanish)")));
             }
         }, 2, 2, TimeUnit.SECONDS);
+    }
+
+    /** Ordner für Inventare, Fortschritte und Statistiken in der Hauptwelt (fehlen nach manchen Welt-Resets). */
+    private void ensurePlayerDataFolders() {
+        if (getServer().getWorlds().isEmpty()) return;
+        Path players = getServer().getWorlds().get(0).getWorldFolder().toPath().resolve("players");
+        for (String dir : List.of("data", "advancements", "stats")) {
+            Path folder = players.resolve(dir);
+            if (Files.isDirectory(folder)) continue;
+            try {
+                Files.createDirectories(folder);
+                getLogger().warning("Spielerdaten-Ordner fehlte und wurde neu angelegt: " + folder);
+            } catch (IOException e) {
+                getLogger().severe("Spielerdaten-Ordner " + folder + " fehlt und kann nicht angelegt werden: " + e.getMessage());
+            }
+        }
     }
 
     private static String env(String key, String fallback) {
@@ -226,6 +247,7 @@ public class NetworkChat extends JavaPlugin implements Listener, PluginMessageLi
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        ensurePlayerDataFolders();
         Player player = event.getPlayer();
         if (isVanished(player)) {
             event.joinMessage(null);
