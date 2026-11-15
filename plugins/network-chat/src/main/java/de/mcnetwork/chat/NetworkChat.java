@@ -99,7 +99,11 @@ public class NetworkChat extends JavaPlugin implements Listener, PluginMessageLi
     /** Ordner für Inventare, Fortschritte und Statistiken in der Hauptwelt (fehlen nach manchen Welt-Resets). */
     private void ensurePlayerDataFolders() {
         if (getServer().getWorlds().isEmpty()) return;
-        Path players = getServer().getWorlds().get(0).getWorldFolder().toPath().resolve("players");
+        // getWorldFolder() zeigt seit Paper 26 auf den Dimensionsordner – der Weltordner ist der mit level.dat
+        Path root = getServer().getWorlds().get(0).getWorldFolder().toPath().toAbsolutePath();
+        while (root != null && !Files.exists(root.resolve("level.dat"))) root = root.getParent();
+        if (root == null) return;
+        Path players = root.resolve("players");
         for (String dir : List.of("data", "advancements", "stats")) {
             Path folder = players.resolve(dir);
             if (Files.isDirectory(folder)) continue;
